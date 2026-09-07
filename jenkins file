@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_EC2_IP = '15.207.71.7'
+        APP_EC2_IP = '13.203.66.141'
     }
 
     tools {
