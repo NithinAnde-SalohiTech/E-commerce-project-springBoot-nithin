@@ -2,59 +2,115 @@ pipeline {
     agent any
 
     environment {
-        // Define any environment variables here
-        PROJECT_NAME = "E-commerce-project-springBoot"
-        GITHUB_REPO_URL = "https://github.com/jaygajera17/E-commerce-project-springBoot.git"
+        APP_EC2_IP = '15.207.71.7'
+    }
+
+    tools {
+        jdk 'JAVA'
+        maven 'MAVEN'
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Git Checkout') {
             steps {
-                // Checkout the code from the GitHub repository
-                git url: "${GITHUB_REPO_URL}", branch: 'main'
+                git url: 'https://github.com/NithinAnde-SalohiTech/E-commerce-project-springBoot-nithin.git',
+                    branch: 'main'
             }
         }
-        
-        stage('Build') {
+
+        stage('Validate') {
             steps {
-                // Build the project using Maven
-                sh 'mvn clean package'
+                sh 'mvn validate'
             }
         }
-        
+
         stage('Test') {
             steps {
-                // Run the tests
                 sh 'mvn test'
             }
         }
-        
-        stage('Deploy') {
+
+        stage('Compile') {
             steps {
-                // Deploy the application (this can be customized as per your deployment process)
-                // For example, copying the built JAR file to a specific location, or deploying to a cloud service
+                sh 'mvn compile'
+            }
+        }
+
+        stage('Sonar Scan') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: 'SONAR_ID',
+                        variable: 'SONAR_TOKEN'
+                    )
+                ]) {
+                    withSonarQubeEnv('sonarqube') {
+                        sh '''
+                            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.6.0.6792:sonar \
+                                -Dsonar.projectKey=nithinande-salohitech \
+                                -Dsonar.organization=nithinande-salohitech \
+                                -Dsonar.host.url=https://sonarcloud.io \
+                                -Dsonar.token=$SONAR_TOKEN
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
                 sh '''
-                echo "Deploying application..."
-                # Example command: copying the built JAR file to a remote server
-                # scp target/*.jar user@remote-server:/path/to/deployment/directory
+                    docker build \
+                        -t nithinecommerce/ecommerce:latest .
                 '''
             }
         }
-    }
-    
-    post {
-        always {
-            // Actions to perform at the end of the pipeline
-            // For example, cleaning up workspace, sending notifications, etc.
-            cleanWs()
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: 'DOCKER_ID',
+                        variable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "nithinecommerce" \
+                            --password-stdin
+
+                        docker push nithinecommerce/ecommerce:latest
+                    '''
+                }
+            }
         }
-        success {
-            // Actions to perform if the pipeline succeeds
-            echo 'Pipeline succeeded!'
-        }
-        failure {
-            // Actions to perform if the pipeline fails
-            echo 'Pipeline failed!'
+
+        stage('Deploy to EC2') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'APP_EC2_SSH',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@$APP_EC2_IP" \
+                            "
+                                docker pull nithinecommerce/ecommerce:latest &&
+                                docker stop ecommerce || true &&
+                                docker rm ecommerce || true &&
+                                docker run -d \
+                                    --name ecommerce-con \
+                                    -p 8080:8080 \
+                                    nithinecommerce/ecommerce:latest
+                            "
+                    '''
+                }
+            }
         }
     }
 }
