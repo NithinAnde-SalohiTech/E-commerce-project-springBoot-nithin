@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         APP_EC2_IP = '13.203.66.141'
+        DOCKER_IMAGE = 'nithinandedocker/ecommerce:latest'
     }
 
     tools {
@@ -56,7 +57,7 @@ pipeline {
             steps { 
                 sh ''' 
                     docker build \
-                        -t nithinecommerce/ecommerce:latest . 
+                        -t "$DOCKER_IMAGE" . 
                 ''' 
             } 
         } 
@@ -75,7 +76,7 @@ pipeline {
                         -u "$DOCKER_USERNAME" \
                         --password-stdin
 
-                    docker push nithinecommerce/ecommerce:latest
+                    docker push "$DOCKER_IMAGE"
                 '''
             }
         }
@@ -95,13 +96,13 @@ pipeline {
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP_EC2_IP" \
                             " 
-                                docker pull nithinecommerce/ecommerce:latest && 
+                                docker pull "$DOCKER_IMAGE" && 
                                 docker stop ecommerce || true && 
                                 docker rm ecommerce || true && 
                                 docker run -d \
                                     --name ecommerce-con \
                                     -p 8080:8080 \
-                                    nithinecommerce/ecommerce:latest 
+                                    "$DOCKER_IMAGE" 
                             " 
                     ''' 
                 } 
