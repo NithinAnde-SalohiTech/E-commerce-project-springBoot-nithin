@@ -55,7 +55,7 @@ pipeline {
         stage('Docker Build') { 
             steps { 
                 sh ''' 
-                    docker build \ 
+                    docker build \
                         -t nithinecommerce/ecommerce:latest . 
                 ''' 
             } 
@@ -70,8 +70,8 @@ pipeline {
                     ) 
                 ]) { 
                     sh ''' 
-                        echo "$DOCKER_PASSWORD" | docker login \ 
-                            -u "nithinecommerce" \ 
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "nithinecommerce" \
                             --password-stdin 
  
                         docker push nithinecommerce/ecommerce:latest 
@@ -90,16 +90,16 @@ pipeline {
                     ) 
                 ]) { 
                     sh ''' 
-                        ssh -o StrictHostKeyChecking=no \ 
-                            -i "$SSH_KEY" \ 
-                            "$SSH_USER@$APP_EC2_IP" \ 
+                        ssh -o StrictHostKeyChecking=no \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@$APP_EC2_IP" \
                             " 
                                 docker pull nithinecommerce/ecommerce:latest && 
                                 docker stop ecommerce || true && 
                                 docker rm ecommerce || true && 
-                                docker run -d \ 
-                                    --name ecommerce-con \ 
-                                    -p 8080:8080 \ 
+                                docker run -d \
+                                    --name ecommerce-con \
+                                    -p 8080:8080 \
                                     nithinecommerce/ecommerce:latest 
                             " 
                     ''' 
