@@ -101,7 +101,7 @@ pipeline {
                                 docker rm ecommerce || true && 
                                 docker run -d \
                                     --name ecommerce-con \
-                                    -p 8080:8080 \
+                                    -p 8081:8081 \
                                     "$DOCKER_IMAGE" 
                             " 
                     ''' 
