@@ -60,25 +60,26 @@ pipeline {
                 ''' 
             } 
         } 
- 
-        stage('Docker Push') { 
-            steps { 
-                withCredentials([ 
-                    string( 
-                        credentialsId: 'DOCKER_ID', 
-                        variable: 'DOCKER_PASSWORD' 
-                    ) 
-                ]) { 
-                    sh ''' 
-                        echo "$DOCKER_PASSWORD" | docker login \
-                            -u "nithinecommerce" \
-                            --password-stdin 
- 
-                        docker push nithinecommerce/ecommerce:latest 
-                    ''' 
-                } 
-            } 
-        } 
+
+        stage('Docker Push') {
+        steps {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: 'DOCKER_ID',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )
+            ]) {
+                sh '''
+                    echo "$DOCKER_PASSWORD" | docker login \
+                        -u "$DOCKER_USERNAME" \
+                        --password-stdin
+
+                    docker push nithinecommerce/ecommerce:latest
+                '''
+            }
+        }
+    }
  
         stage('Deploy to EC2') { 
             steps { 
