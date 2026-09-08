@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         APP_EC2_IP = '13.203.66.141'
+        DOCKER_IMAGE = 'nithinecommerce/ecommerce:latest'
     }
 
     tools {
@@ -52,31 +53,38 @@ pipeline {
             }
         }
 
+        stage('Docker Login') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'DOCKER_HUB',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            --username "$DOCKER_USERNAME" \
+                            --password-stdin
+                    '''
+                }
+            }
+        }
+
         stage('Docker Build') {
             steps {
                 sh '''
                     docker build \
-                        -t nithinecommerce/ecommerce:latest .
+                        -t $DOCKER_IMAGE .
                 '''
             }
         }
 
         stage('Docker Push') {
             steps {
-                withCredentials([
-                    string(
-                        credentialsId: 'DOCKER_ID',
-                        variable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                            -u "nithinecommerce" \
-                            --password-stdin
-
-                        docker push nithinecommerce/ecommerce:latest
-                    '''
-                }
+                sh '''
+                    docker push $DOCKER_IMAGE
+                '''
             }
         }
 
@@ -94,17 +102,23 @@ pipeline {
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP_EC2_IP" \
                             "
-                                docker pull nithinecommerce/ecommerce:latest &&
-                                docker stop ecommerce || true &&
-                                docker rm ecommerce || true &&
+                                docker pull $DOCKER_IMAGE &&
+                                docker stop ecommerce-con || true &&
+                                docker rm ecommerce-con || true &&
                                 docker run -d \
                                     --name ecommerce-con \
                                     -p 8080:8080 \
-                                    nithinecommerce/ecommerce:latest
+                                    $DOCKER_IMAGE
                             "
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout || true'
         }
     }
 }
