@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         APP_EC2_IP = '13.203.66.141'
-        DOCKER_IMAGE = 'nithinecommerce/ecommerce:latest'
     }
 
     tools {
@@ -45,80 +44,67 @@ pipeline {
                             mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.6.0.6792:sonar \
                                 -Dsonar.projectKey=nithinande-salohitech \
                                 -Dsonar.organization=nithinande-salohitech \
-                                -Dsonar.host.url=https://sonarcloud.io \
-                                -Dsonar.token=$SONAR_TOKEN
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Docker Login') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'DOCKER_HUB',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                            --username "$DOCKER_USERNAME" \
-                            --password-stdin
-                    '''
-                }
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh '''
-                    docker build \
-                        -t $DOCKER_IMAGE .
-                '''
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                sh '''
-                    docker push $DOCKER_IMAGE
-                '''
-            }
-        }
-
-        stage('Deploy to EC2') {
-            steps {
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'APP_EC2_SSH',
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                            -i "$SSH_KEY" \
-                            "$SSH_USER@$APP_EC2_IP" \
-                            "
-                                docker pull $DOCKER_IMAGE &&
-                                docker stop ecommerce-con || true &&
-                                docker rm ecommerce-con || true &&
-                                docker run -d \
-                                    --name ecommerce-con \
-                                    -p 8080:8080 \
-                                    $DOCKER_IMAGE
-                            "
-                    '''
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            sh 'docker logout || true'
-        }
-    }
+                                -Dsonar.host.url=https://sonarcloud.io \ 
+                                -Dsonar.token=$SONAR_TOKEN 
+                        ''' 
+                    } 
+                } 
+            } 
+        } 
+ 
+        stage('Docker Build') { 
+            steps { 
+                sh ''' 
+                    docker build \ 
+                        -t nithinecommerce/ecommerce:latest . 
+                ''' 
+            } 
+        } 
+ 
+        stage('Docker Push') { 
+            steps { 
+                withCredentials([ 
+                    string( 
+                        credentialsId: 'DOCKER_ID', 
+                        variable: 'DOCKER_PASSWORD' 
+                    ) 
+                ]) { 
+                    sh ''' 
+                        echo "$DOCKER_PASSWORD" | docker login \ 
+                            -u "nithinecommerce" \ 
+                            --password-stdin 
+ 
+                        docker push nithinecommerce/ecommerce:latest 
+                    ''' 
+                } 
+            } 
+        } 
+ 
+        stage('Deploy to EC2') { 
+            steps { 
+                withCredentials([ 
+                    sshUserPrivateKey( 
+                        credentialsId: 'APP_EC2_SSH', 
+                        keyFileVariable: 'SSH_KEY', 
+                        usernameVariable: 'SSH_USER' 
+                    ) 
+                ]) { 
+                    sh ''' 
+                        ssh -o StrictHostKeyChecking=no \ 
+                            -i "$SSH_KEY" \ 
+                            "$SSH_USER@$APP_EC2_IP" \ 
+                            " 
+                                docker pull nithinecommerce/ecommerce:latest && 
+                                docker stop ecommerce || true && 
+                                docker rm ecommerce || true && 
+                                docker run -d \ 
+                                    --name ecommerce-con \ 
+                                    -p 8080:8080 \ 
+                                    nithinecommerce/ecommerce:latest 
+                            " 
+                    ''' 
+                } 
+            } 
+        } 
+    } 
 }
